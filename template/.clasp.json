@@ -1,0 +1,21 @@
+{
+  "scriptId": "",
+  "rootDir": "gas-dist",
+  "scriptExtensions": [
+    ".gs",
+    ".js"
+  ],
+  "htmlExtensions": [
+    ".html"
+  ],
+  "jsonExtensions": [
+    ".json"
+  ],
+  "filePushOrder": [
+    "appsscript.json",
+    "Code.gs",
+    "GeminiService.gs",
+    "index.html"
+  ],
+  "skipSubdirectories": true
+}

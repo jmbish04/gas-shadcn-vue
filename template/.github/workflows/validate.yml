@@ -1,0 +1,126 @@
+name: Validate Setup
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.clasp.json'
+      - 'package.json'
+      - 'tsconfig*.json'
+
+jobs:
+  validate:
+    name: Validate Project Setup
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 8
+
+    - name: Install dependencies
+      run: pnpm install
+
+    - name: Validate configuration files
+      run: |
+        echo "🔍 Validating project configuration..."
+
+        # Check required files
+        echo "📄 Checking required files..."
+        files=(".clasp.json" "package.json" "tsconfig.json" "vite.config.ts")
+        for file in "${files[@]}"; do
+          if [ -f "$file" ]; then
+            echo "✅ $file exists"
+          else
+            echo "❌ $file missing"
+            exit 1
+          fi
+        done
+
+        # Validate .clasp.json
+        echo "🔧 Validating .clasp.json..."
+        if grep -q '"scriptId"' .clasp.json && grep -q '"rootDir"' .clasp.json; then
+          echo "✅ .clasp.json structure valid"
+        else
+          echo "❌ .clasp.json missing required fields"
+          exit 1
+        fi
+
+        # Check if scriptId is set
+        if grep -q '"scriptId": ""' .clasp.json; then
+          echo "⚠️  Warning: scriptId is empty in .clasp.json"
+          echo "   You'll need to set this before deployment"
+        else
+          echo "✅ scriptId appears to be configured"
+        fi
+
+    - name: Test build process
+      run: |
+        echo "🏗️  Testing build process..."
+        pnpm run build:gas
+
+        echo "📋 Checking gas-dist output..."
+        if [ -d "gas-dist" ]; then
+          echo "✅ gas-dist directory created"
+          ls -la gas-dist/
+        else
+          echo "❌ gas-dist directory not created"
+          exit 1
+        fi
+
+        # Check required output files
+        required_files=("index.html" "Code.gs" "GeminiService.gs" "appsscript.json")
+        for file in "${required_files[@]}"; do
+          if [ -f "gas-dist/$file" ]; then
+            echo "✅ gas-dist/$file exists"
+          else
+            echo "❌ gas-dist/$file missing"
+            exit 1
+          fi
+        done
+
+    - name: Validate TypeScript
+      run: |
+        echo "🔍 TypeScript validation..."
+        npx tsc --noEmit
+        echo "✅ TypeScript validation passed"
+
+    - name: Check for common issues
+      run: |
+        echo "🕵️  Checking for common issues..."
+
+        # Check for TODO comments in gas files
+        if grep -r "TODO\|FIXME" *.gs gas-dist/*.gs 2>/dev/null; then
+          echo "⚠️  Found TODO/FIXME comments in GAS files"
+        fi
+
+        # Check for console.log in production files
+        if grep -r "console\.log" gas-dist/*.gs 2>/dev/null; then
+          echo "⚠️  Found console.log in production GAS files"
+        fi
+
+        echo "✅ Validation complete"
+
+    - name: Generate validation report
+      run: |
+        echo "## 📊 Validation Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Project structure:** Valid" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Build process:** Working" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **TypeScript:** Valid" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Files generated:**" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        ls -la gas-dist/ >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🚀 **Ready for deployment!**" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,63 @@
+name: Deploy to Google Apps Script
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 8
+
+    - name: Install dependencies
+      run: pnpm install
+
+    - name: Build project
+      run: pnpm run build:gas
+
+    - name: Install clasp globally
+      run: npm install -g @google/clasp
+
+    - name: Create clasp credentials
+      run: |
+        mkdir -p ~/.config/clasp
+        echo '${{ secrets.CLASP_CREDENTIALS }}' > ~/.config/clasp/credentials.json
+
+    - name: Navigate to gas-dist and push to Apps Script
+      run: |
+        cd gas-dist
+        clasp push --force
+      env:
+        CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
+
+    - name: Deploy to Apps Script (on main branch only)
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      run: |
+        cd gas-dist
+        clasp deploy --description "Automated deployment from GitHub Actions - ${{ github.sha }}"
+      env:
+        CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
+
+    - name: Get deployment URL
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      run: |
+        cd gas-dist
+        echo "Deployment completed. Check your Apps Script project for the latest deployment."
+        clasp versions
