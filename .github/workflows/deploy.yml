@@ -36,9 +36,8 @@ jobs:
       - name: Authenticate Clasp
         run: echo "${{ secrets.CLASP_CREDENTIALS }}"  ~/.clasprc.json
 
-      - name: Get existing deployment ID
-        id: get_deployment
-        run: |
-          cd gas-dist
-          DEPLOYMENTS=$(clasp deployments --json || echo "")
-          if [ -z "$DEPLOYMENTS" ] || [ "$DEPLOYMENTS" 
+      - name: Push to Apps Script
+        run: cd gas-dist && clasp push
+
+      - name: Create new version
+        run: cd gas-dist && clasp create-version
