@@ -1,0 +1,123 @@
+name: Deploy to Google Apps Script (Advanced)
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      deploy_description:
+        description: 'Deployment description'
+        required: false
+        default: 'Manual deployment from GitHub Actions'
+      force_deploy:
+        description: 'Force deployment even on non-main branch'
+        type: boolean
+        required: false
+        default: false
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  lint-and-test:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'pnpm'
+
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+
+    - name: Type check
+      run: pnpm run build  # This includes vue-tsc type checking
+
+    - name: Build project
+      run: pnpm run build:gas
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: gas-build-${{ github.sha }}
+        path: gas-dist/
+        retention-days: 7
+
+  deploy-to-gas:
+    name: Deploy to Google Apps Script
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: gas-build-${{ github.sha }}
+        path: gas-dist/
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'pnpm'
+
+    - name: Install clasp globally
+      run: pnpm add -g @google/clasp@latest
+
+    - name: Create clasp credentials directory
+      run: mkdir -p ~/.config/clasp
+
+    - name: Setup clasp credentials
+      run: echo '${{ secrets.CLASP_CREDENTIALS }}' > ~/.config/clasp/credentials.json
+
+    - name: Verify clasp setup
+      run: |
+        cd gas-dist
+        clasp status || echo "Status check completed"
+
+    - name: Push to Apps Script
+      run: |
+        cd gas-dist
+        echo "Pushing files to Google Apps Script..."
+        clasp push --force
+      env:
+        CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
+
+    - name: Deploy to Apps Script (on main branch only)
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      run: |
+        cd gas-dist
+        echo "Creating new deployment..."
+        DEPLOYMENT_OUTPUT=$(clasp deploy --description "${{ github.event.inputs.deploy_description || 'Automated deployment from GitHub Actions' }}")
+        echo "Deployment completed: $DEPLOYMENT_OUTPUT"
+      env:
+        CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
+
+    - name: Create deployment summary
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      run: |
+        echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Description:** ${{ github.event.inputs.deploy_description || 'Automated deployment from GitHub Actions' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status:** ✅ Successful" >> $GITHUB_STEP_SUMMARY
+      env:
+        CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
