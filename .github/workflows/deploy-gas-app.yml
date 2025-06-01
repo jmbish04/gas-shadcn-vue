@@ -25,7 +25,27 @@ jobs:
       - name: Login to clasp
         run: echo "$CLASPRC" > ~/.clasprc.json
         env:
-          CLASPRC: ${{ secrets.CLASP_CREDENTIALS }}
+          CLASPRC: ${{ secrets.CLASPRC }}
+
+      - name: Verify credentials file integrity
+        env:
+          EXPECTED_SHA: ${{ secrets.CLASPRC_SHA }}
+        run: |
+          echo "Verifying .clasprc.json file..."
+          
+          # Calculate the SHA of the file created in the runner
+          ACTUAL_SHA=$(shasum -a 256 ~/.clasprc.json | awk '{print $1}')
+          
+          echo "Actual SHA:   $ACTUAL_SHA"
+          echo "Expected SHA: $EXPECTED_SHA"
+          
+          # Compare the actual SHA with the expected one from secrets
+          if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]; then
+            echo "ERROR: Checksum mismatch! The .clasprc.json content does not match the expected value."
+            exit 1
+          fi
+          
+          echo "Checksum verified successfully!"
 
       - name: Deploy
         # -f is the shorthand for --force, which is correct
