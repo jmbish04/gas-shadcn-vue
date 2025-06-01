@@ -30,16 +30,16 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-
     - name: Setup pnpm
       uses: pnpm/action-setup@v4
       with:
         version: ${{ env.PNPM_VERSION }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'pnpm'
 
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
@@ -73,13 +73,19 @@ jobs:
         name: gas-build-${{ github.sha }}
         path: gas-dist/
 
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: ${{ env.PNPM_VERSION }}
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: ${{ env.NODE_VERSION }}
+        cache: 'pnpm'
 
     - name: Install clasp globally
-      run: npm install -g @google/clasp@latest
+      run: pnpm add -g @google/clasp@latest
 
     - name: Create clasp credentials directory
       run: mkdir -p ~/.config/clasp

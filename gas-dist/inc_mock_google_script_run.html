@@ -1,0 +1,48 @@
+<script>
+// Mock google.script.run for local development if it's not already defined
+if (typeof google === 'undefined' || typeof google.script === 'undefined') {
+  window.google = {
+    script: {
+      run: new Proxy({}, {
+        get: function(target, prop) {
+          return function() {
+            const successHandler = {
+              withSuccessHandler: function(callback) {
+                // Simulate an async call
+                console.log(`Mocked google.script.run.${prop} called with arguments:`, Array.from(arguments));
+                // You might want to simulate a response for specific functions
+                // For example, if prop === 'getUserName', call callback('Test User');
+                setTimeout(() => {
+                  // Generic mock response or specific ones based on 'prop'
+                  if (prop === 'getCurrentUser') {
+                     callback({ email: 'dev@example.com', name: 'Development User' });
+                  } else {
+                     callback('Mocked response for ' + prop);
+                  }
+                }, 50);
+                return successHandler; // Allow chaining further handlers like withFailureHandler
+              },
+              withFailureHandler: function(errorCallback) {
+                // In this simple mock, we don't simulate failures, but you could
+                return successHandler; // Allow chaining
+              },
+              withUserObject: function(userObj) {
+                return successHandler; // Allow chaining
+              }
+            };
+            return successHandler;
+          };
+        }
+      }),
+      host: {
+        close: function() { console.log('Mock google.script.host.close()'); },
+        setHeight: function(height) { console.log('Mock google.script.host.setHeight(' + height + ')'); },
+        setWidth: function(width) { console.log('Mock google.script.host.setWidth(' + width + ')'); },
+        editor: {
+          focus: function() { console.log('Mock google.script.host.editor.focus()'); }
+        }
+      }
+    }
+  };
+}
+</script>

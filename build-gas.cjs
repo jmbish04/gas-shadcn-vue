@@ -57,7 +57,7 @@ if (typeof google === 'undefined' || typeof google.script === 'undefined') {
                   } else {
                      callback('Mocked response for ' + prop);
                   }
-                }, 50); 
+                }, 50);
                 return successHandler; // Allow chaining further handlers like withFailureHandler
               },
               withFailureHandler: function(errorCallback) {
@@ -107,16 +107,19 @@ function processAndInlineAssets() {
     const cssPath = path.join(BUILD_DIR, cssMatch[1].startsWith('/') ? cssMatch[1].substring(1) : cssMatch[1]);
     if (fs.existsSync(cssPath)) {
       console.log(`Found CSS: ${cssPath}`);
-      combinedCss += fs.readFileSync(cssPath, 'utf8') + '\\n';
+      combinedCss += fs.readFileSync(cssPath, 'utf8') + '\n';
     } else {
       console.warn(`⚠️ CSS file not found: ${cssPath}`);
     }
   }
-  fs.writeFileSync(path.join(GAS_DIST_DIR, 'inc_styles.html'), combinedCss);
+
+  // Wrap CSS in style tags
+  const wrappedCss = `<style>\n/* Global styles are imported in main.ts */\n${combinedCss}\n</style>`;
+  fs.writeFileSync(path.join(GAS_DIST_DIR, 'inc_styles.html'), wrappedCss);
   console.log('✅ Created gas-dist/inc_styles.html');
 
   // Find JS assets (modules and regular scripts)
-  const jsRegex = /<script[^>]+src="([^"]+)"[^>]*><\\/script>/g; // Simpler regex for src
+  const jsRegex = /<script[^>]+src="([^"]+)"[^>]*><\/script>/g; // Simpler regex for src
   let jsMatch;
   let combinedJs = '';
   const scriptSrcs = [];
@@ -128,7 +131,7 @@ function processAndInlineAssets() {
       const scriptSrc = jsMatch[1].startsWith('/') ? jsMatch[1].substring(1) : jsMatch[1];
       scriptSrcs.push(path.join(BUILD_DIR, scriptSrc));
   }
-  
+
   // Also look for modulepreload links, Vite might use them
   const modulePreloadRegex = /<link[^>]+rel="modulepreload"[^>]+href="([^"]+)"/g;
   let preloadMatch;
@@ -146,13 +149,15 @@ function processAndInlineAssets() {
   for (const jsPath of scriptSrcs) {
     if (fs.existsSync(jsPath)) {
       console.log(`Found JS: ${jsPath}`);
-      combinedJs += fs.readFileSync(jsPath, 'utf8') + '\\n;\\n'; // Add newline and semicolon for safety
+      combinedJs += fs.readFileSync(jsPath, 'utf8') + '\n;\n'; // Add newline and semicolon for safety
     } else {
       console.warn(`⚠️ JS file not found: ${jsPath}`);
     }
   }
 
-  fs.writeFileSync(path.join(GAS_DIST_DIR, 'inc_script.html'), combinedJs);
+  // Wrap JavaScript in script tags
+  const wrappedJs = `<script>\n${combinedJs}\n</script>`;
+  fs.writeFileSync(path.join(GAS_DIST_DIR, 'inc_script.html'), wrappedJs);
   console.log('✅ Created gas-dist/inc_script.html');
 }
 
@@ -193,7 +198,7 @@ function copyGasFiles() {
     console.log(`✅ Copied appsscript.json to ${GAS_DIST_DIR}`);
   } else {
     // Create a default one if it doesn't exist
-    createAppsScriptManifest(); 
+    createAppsScriptManifest();
   }
 }
 
@@ -232,7 +237,7 @@ function main() {
 
   // 1. Create the main gas-dist/index.html template that GAS will serve
   createGasIndexTemplate();
-  
+
   // 1b. Create the mock google.script.run include file
   createMockGoogleScriptRunFile();
 
