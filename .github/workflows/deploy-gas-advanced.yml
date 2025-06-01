@@ -108,9 +108,7 @@ jobs:
         cd gas-dist
         DESCRIPTION="${{ github.event.inputs.deploy_description || format('Automated deployment - {0}', github.sha) }}"
         echo "Deploying with description: $DESCRIPTION"
-        clasp deploy --description "$DESCRIPTION"
-        echo "Getting deployment information..."
-        clasp deployments || echo "Could not retrieve deployment info"
+        clasp create-version --description "$DESCRIPTION"
       env:
         CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
 
