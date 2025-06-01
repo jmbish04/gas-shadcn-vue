@@ -1,0 +1,25 @@
+name: Deploy Appscript
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy_script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 18
+      - name: Install clasp
+        run: npm install -g @google/clasp
+      - name: Login to clasp
+        run: echo "$CLASPRC" > $HOME/.clasprc.json
+        env:
+          CLASPRC: ${{ secrets.CLASP_CREDENTIALS }}
+      - name: Deploy
+        run: clasp push -f
