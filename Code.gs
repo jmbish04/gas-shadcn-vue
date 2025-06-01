@@ -1,94 +1,90 @@
-/**
- * Main server-side entry point for the Google Apps Script web app
- * Serves the Vue.js application and handles routing
- */
+// Code.gs
 
-/**
- * Serves the main web app
- */
 function doGet(e) {
-  const htmlOutput = HtmlService.createTemplateFromFile('index')
-    .evaluate()
-    .setTitle('Vue GAS App')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  const htmlTemplate = HtmlService.createTemplateFromFile('index'); // From gas-dist/index.html
 
-  return htmlOutput;
+  try {
+    htmlTemplate.styles = HtmlService.createHtmlOutputFromFile('inc_styles.html').getContent();
+  } catch (err) {
+    Logger.log('Error loading inc_styles.html: ' + err.message + ' Stack: ' + err.stack);
+    htmlTemplate.styles = '/* Styles could not be loaded. Check server logs. */';
+  }
+
+  try {
+    htmlTemplate.scripts = HtmlService.createHtmlOutputFromFile('inc_script.html').getContent();
+  } catch (err) {
+    Logger.log('Error loading inc_script.html: ' + err.message + ' Stack: ' + err.stack);
+    htmlTemplate.scripts = 'console.error("Client-side scripts could not be loaded. Check server logs. Details: ' + escapeJsString(err.message) + '");';
+  }
+
+  // For the mock google.script.run, only include it if not in a true GAS environment
+  // However, for simplicity in the template, we can just always include it,
+  // and the script itself checks if `google.script.run` is already defined.
+  // Or, conditionally add it here:
+  // htmlTemplate.mock_google_script_run = ''; // Default to empty
+  // if (/* some condition to detect non-GAS env, tricky server-side */) {
+  //   htmlTemplate.mock_google_script_run = HtmlService.createHtmlOutputFromFile('inc_mock_google_script_run.html').getContent();
+  // }
+  // For now, let's assume the template always includes the placeholder, and the mock script handles its own existence.
+  // So, we need to provide content for it:
+  try {
+    htmlTemplate.mock_google_script_run = HtmlService.createHtmlOutputFromFile('inc_mock_google_script_run.html').getContent();
+  } catch (err) {
+    Logger.log('Error loading inc_mock_google_script_run.html: ' + err.message);
+    htmlTemplate.mock_google_script_run = '<script>console.error("Could not load google.script.run mock.");</script>';
+  }
+
+
+  return htmlTemplate.evaluate()
+    .setTitle('My Vue GAS App') // Set your desired title
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
 }
 
-/**
- * Include CSS and JS files in the HTML template
- */
-function include(filename) {
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+function escapeJsString(str) {
+  return String(str)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, '\\\'')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t')
+    .replace(/[\u0000-\u001F]/g, function(match) {
+      return '\\x' + ('00' + match.charCodeAt(0).toString(16)).slice(-2);
+    });
 }
 
-/**
- * Get user information for the current user
- */
+// Your other Code.gs functions (like GeminiService calls, etc.) remain here
+// e.g., from your GeminiService.gs or other .gs files if they are meant to be callable from client
 function getCurrentUser() {
   try {
-    const user = Session.getActiveUser();
-    return {
-      email: user.getEmail(),
-      name: user.getEmail().split('@')[0] // Basic name extraction
-    };
-  } catch (error) {
-    console.error('Error getting current user:', error);
-    return {
-      email: 'anonymous@example.com',
-      name: 'Anonymous'
-    };
+    const email = Session.getActiveUser().getEmail();
+    const name = Session.getActiveUser().getUsername(); // May not be available depending on domain settings
+    // For more robust name fetching, you might need People API if Directory API isn't an option or email is enough
+    return { email: email, name: name || email.split('@')[0] };
+  } catch (e) {
+    // Likely no active user (e.g. anonymous access or service account) or permissions issue
+    Logger.log("Error getting current user: " + e.toString());
+    return { email: 'unknown', name: 'Unknown User' };
   }
 }
 
-/**
- * Test function to verify server-side functionality
- */
 function testServerConnection() {
-  return {
-    status: 'success',
-    message: 'Server connection successful!',
-    timestamp: new Date().toISOString(),
-    scriptId: ScriptApp.getScriptId()
-  };
+  return { status: 'ok', timestamp: new Date().toISOString(), message: 'Connection to Google Apps Script server successful!' };
 }
 
-/**
- * Get application configuration
- */
-function getAppConfig() {
-  return {
-    appName: 'Vue GAS App',
-    version: '1.0.0',
-    environment: 'production',
-    features: {
-      chat: true,
-      dashboard: true,
-      dataTable: true
-    }
-  };
-}
+// Add other server-side functions that your Vue app will call via google.script.run
+// For example:
+// function getSomeData() {
+//   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Data");
+//   return sheet.getDataRange().getValues();
+// }
 
-/**
- * Simple test function for chat functionality
- * Returns a basic response without calling Gemini API
- */
-function testChat(message) {
-  try {
-    return {
-      success: true,
-      message: `Echo: ${message} - Server is working!`,
-      timestamp: new Date().toISOString(),
-      metadata: {
-        model: 'test',
-        environment: 'Google Apps Script'
-      }
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error.message,
-      timestamp: new Date().toISOString()
-    };
-  }
-}
+// Make sure functions callable from client are not starting with underscore
+// and are globally defined in your Code.gs or other .gs files included in the deployment.
+
+/*
+Include the content of GeminiService.gs here if you want it all in one Code.gs for clasp,
+or ensure your build process copies GeminiService.gs to gas-dist and it's correctly referenced.
+The build script above (copyGasFiles) now copies GeminiService.gs.
+*/
