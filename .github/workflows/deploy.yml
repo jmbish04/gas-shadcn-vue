@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,15 +26,19 @@ jobs:
       - name: Build project
         run: npm run build:gas
 
-      - name: Determine deployment
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Validate build directory
         run: |
-          REPO="jmbish04/gas-shadcn-vue"
-          DEPLOYMENTS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-            https://api.github.com/repos/$REPO/deployments)
+          if [ ! -d "gas-dist" ]; then
+            echo "Build failed: gas-dist directory not found."
+            exit 1
+          fi
 
-          if [ "$(echo "$DEPLOYMENTS" | jq length)" -eq 0 ]; then
-            echo "No deployments found. Creating a new deployment."
-            curl -s -X POST -H "Authorization: token $GITHUB_TOKEN" \
-              -H "Ac
+      - name: Authenticate Clasp
+        run: echo "${{ secrets.CLASP_CREDENTIALS }}"  ~/.clasprc.json
+
+      - name: Get existing deployment ID
+        id: get_deployment
+        run: |
+          cd gas-dist
+          DEPLOYMENTS=$(clasp deployments --json || echo "")
+          if [ -z "$DEPLOYMENTS" ] || [ "$DEPLOYMENTS" 
