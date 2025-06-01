@@ -1,4 +1,4 @@
-name: Deploy Appscript
+name: Deploy Google Apps Script via CLASP
 
 on:
   push:
@@ -8,41 +8,38 @@ on:
 jobs:
   deploy_script:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
-        # Updated from @v2 to @v4
+      - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        # Updated from @v2 to @v4
+      - name: 🔧 Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18 # You can keep 18 or use a newer LTS like 20
+          node-version: 18
 
-      - name: Install clasp
+      - name: 📦 Install clasp globally
         run: npm install -g @google/clasp
 
-      - name: Login to clasp
+      - name: 🔐 Inject .clasprc.json credentials
         run: echo "$CLASPRC" > ~/.clasprc.json
         env:
           CLASPRC: ${{ secrets.CLASP_RC_JSON }}
 
-      - name: Verify .clasprc.json SHA256
+      - name: 🔍 Verify .clasprc.json integrity
         run: |
-          echo "Checking .clasprc.json hash…"
+          echo "📑 Validating .clasprc.json SHA..."
           CANONICAL_SHA=$(tr -d '\r' < ~/.clasprc.json | awk '{ ORS=""; print } END { print "\n" }' | shasum -a 256 | awk '{print $1}')
-          echo "Expected SHA: $EXPECTED_SHA"
-          echo "Actual SHA:   $CANONICAL_SHA"
-      
+          echo "✅ Expected SHA: $EXPECTED_SHA"
+          echo "🔍 Actual SHA:   $CANONICAL_SHA"
+          
           if [ "$CANONICAL_SHA" != "$EXPECTED_SHA" ]; then
-            echo "❌ ERROR: SHA mismatch! .clasprc.json does not match the expected hash."
+            echo "❌ SHA mismatch — deployment aborted."
             exit 1
           fi
-      
-          echo "✅ SHA match confirmed."
+          echo "✅ SHA verified successfully."
         env:
           EXPECTED_SHA: ${{ secrets.CLASPRC_SHA }}
 
-      - name: Deploy
-        # -f is the shorthand for --force, which is correct
+      - name: 🚀 Deploy via clasp
         run: clasp push --force
