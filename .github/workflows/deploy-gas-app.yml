@@ -10,16 +10,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        # Updated from @v2 to @v4
+        uses: actions/checkout@v4
+
       - name: Set up Node.js
-        uses: actions/setup-node@v2
+        # Updated from @v2 to @v4
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 18 # You can keep 18 or use a newer LTS like 20
+
       - name: Install clasp
         run: npm install -g @google/clasp
+
       - name: Login to clasp
-        run: echo "$CLASPRC" > $HOME/.clasprc.json
+        run: echo "$CLASPRC" > ~/.clasprc.json
         env:
           CLASPRC: ${{ secrets.CLASP_CREDENTIALS }}
+
       - name: Deploy
-        run: clasp push -f
+        # -f is the shorthand for --force, which is correct
+        run: clasp push --force
